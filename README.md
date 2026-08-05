@@ -4,6 +4,8 @@
 
 使用企业微信、微信等工具下载的文件常常分布在不同的目录和层级里，离职或换电脑时容易丢失。FileGather 可以按文件扩展名和文件名关键词检索指定目录（含子目录）下的文件，然后统一复制或移动到目标文件夹，方便整理和带走。
 
+> **另有 Android 手机版**：同样的逻辑，在手机上把散落的文件收集起来（源码与打包教程在 [FileGather.Android](https://github.com/zhizheyongfeng/FileGather.Android)）。
+
 ## 功能特性
 
 - **按扩展名筛选**：支持 Word / PDF / Excel / PPT 等任意后缀（逗号分隔，可自定义）
