@@ -39,6 +39,9 @@ public partial class MainViewModel : ViewModelBase
     public partial bool IsMove { get; set; }
 
     [ObservableProperty]
+    public partial bool SkipExistingSame { get; set; } = true;
+
+    [ObservableProperty]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
@@ -158,17 +161,21 @@ public partial class MainViewModel : ViewModelBase
 
         var files = Results.ToList();
         var move = IsMove;
+        var skipExisting = SkipExistingSame;
         var done = 0;
 
         var result = await Task.Run(() =>
-            _transfer.Transfer(files, targetDir, move,
+            _transfer.Transfer(files, targetDir, move, skipExisting,
                 onFileDone: _ => Dispatcher.UIThread.Post(() => ProgressValue = Interlocked.Increment(ref done))));
 
         IsTransferring = false;
         ProgressValue = ProgressMax;
 
         var action = move ? "移动" : "复制";
-        StatusText = $"{action}完成：成功 {result.Succeeded} 个，失败 {result.Failed} 个";
+        if (result.Skipped > 0)
+            StatusText = $"{action}完成：成功 {result.Succeeded} 个，跳过已存在 {result.Skipped} 个，失败 {result.Failed} 个";
+        else
+            StatusText = $"{action}完成：成功 {result.Succeeded} 个，失败 {result.Failed} 个";
 
         if (result.Failed > 0)
             StatusText += $"　（{string.Join("；", result.Errors.Take(2))}）";

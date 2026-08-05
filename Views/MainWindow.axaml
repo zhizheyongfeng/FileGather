@@ -98,6 +98,8 @@
                     <RadioButton Content="复制（保留源文件）" IsChecked="{Binding !IsMove}" />
                     <RadioButton Content="移动（源文件将被移除）" IsChecked="{Binding IsMove}" />
                 </StackPanel>
+                <CheckBox Content="跳过已存在的相同文件（增量同步，重复同步时不再复制已同步过的文件）"
+                          IsChecked="{Binding SkipExistingSame}" />
 
                 <!-- 执行按钮 -->
                 <Button Content="开始执行" Padding="0,8"
