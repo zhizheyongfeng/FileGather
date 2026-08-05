@@ -55,9 +55,9 @@ dotnet --version
 任选一种方式：
 
 **方式 A：命令行克隆（需要 Git）**
-安装 [Git for Windows](https://git-scm.com/download/win)（一路默认）后执行：
+安装 [Git for Windows](https://git-scm.com/download/win)（一路默认）后执行（用 HTTPS 地址，避免 SSH 密钥配置问题）：
 ```
-git clone git@github.com:zhizheyongfeng/FileGather.git
+git clone https://github.com/zhizheyongfeng/FileGather.git
 cd FileGather
 ```
 
@@ -70,7 +70,12 @@ cd FileGather
 
 ## 第 4 步：打包
 
-在 `FileGather` 文件夹内打开命令提示符（在文件夹**地址栏**输入 `cmd` 回车即可，会自动定位到当前目录），执行：
+> **重要**：下面命令都必须在 **`FileGather` 项目文件夹内**执行（能看到 `FileGather.csproj` 这个文件的那个目录）。
+> 用哪条命令，取决于你的终端类型，先看下方 [如何判断自己的终端](#如何判断自己的终端)。
+
+### 方式一：命令提示符 cmd（推荐）
+
+在 `FileGather` 文件夹的**地址栏**输入 `cmd` 回车，打开后执行：
 
 ```
 dotnet publish -c Release -r win-x64 --self-contained true ^
@@ -79,11 +84,34 @@ dotnet publish -c Release -r win-x64 --self-contained true ^
   -p:DebugType=None -p:DebugSymbols=false
 ```
 
-> 说明：
+### 方式二：bash（Git Bash / WSL 等）
+
+如果在 **bash** 里执行，**不要用 `^` 换行符**（那是 cmd 的语法，bash 里会报 `command not found`）。把命令写成一整行：
+
+```
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false
+```
+
+### 方式三：PowerShell
+
+PowerShell 里用反引号 `` ` `` 换行，或同样写成一整行：
+
+```
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false
+```
+
+> 通用说明：
 > - 第一次构建会自动下载依赖，需要几分钟，请耐心等待，看到 `Build succeeded` 即成功
 > - `--self-contained true` 会把 .NET 运行时打包进 exe，**目标电脑上不需要再装任何东西**
 > - 如果是 **ARM 架构** 的 Windows（部分 Surface / 骁龙笔记本），把 `win-x64` 换成 `win-arm64`
-> - 把上面的 `^` 换行符删掉、写成一整行也可以，效果一样
+
+### 如何判断自己的终端
+
+| 现象 | 终端类型 | 用哪个命令 |
+|------|---------|-----------|
+| 黑色窗口，标题是 **cmd.exe**，路径形如 `C:\...` | 命令提示符 | 方式一 |
+| 路径形如 `/c/...`、`/home/...`，输入 `^` 不生效 | bash（Git Bash / WSL） | 方式二 |
+| 蓝色窗口，标题是 **Windows PowerShell**，提示符是 `PS C:\...` | PowerShell | 方式三 |
 
 ---
 
@@ -103,6 +131,11 @@ FileGather\bin\Release\net10.0\win-x64\publish\FileGather.exe
 
 **Q：报错 "'dotnet' 不是内部或外部命令"**
 A：SDK 没装好或环境变量没刷新。重新运行一次安装程序，并**关闭命令提示符再重新打开**。
+
+**Q：报错 `MSB1009: 项目文件不存在`，或 `bash: -p:... command not found`**
+A：两种常见原因：
+1. **没在项目文件夹里**——先 `cd FileGather`（或用 Download ZIP 解压后进入那个目录），确认能看到 `FileGather.csproj` 再执行。
+2. **终端类型不匹配**——如果提示 `command not found`，说明你在 **bash**（Git Bash / WSL）里用了 cmd 的 `^` 换行语法。请按上方「第 4 步」**方式二**，把命令写成**一整行**再执行。
 
 **Q：装了新版 SDK 但命令还是提示没装？**
 A：确认下载的是 "SDK" 而不是 "Runtime"，并且**重新打开**命令提示符（旧的不会自动加载新环境变量）。
