@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="FileGather.Android.Android/FileGather.Android.Android.csproj">
+    <Deploy />
+  </Project>
+  <Project Path="FileGather.Android/FileGather.Android.csproj" />
+</Solution>
