@@ -1,0 +1,11 @@
+## .NET 编译产物
+bin/
+obj/
+
+## 本地会话配置
+.claude/
+
+## 构建发布产物
+*.user
+.vs/
+.idea/
