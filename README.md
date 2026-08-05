@@ -37,6 +37,8 @@
 
 ## 构建与发布
 
+> **在 Windows 上打包 exe ？** 请参考 [BUILD_ON_WINDOWS.md](BUILD_ON_WINDOWS.md)，含详细的 .NET SDK 安装、克隆代码和打包步骤。
+
 ```bash
 # 本地运行（Linux 下可直接运行）
 dotnet run
