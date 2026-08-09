@@ -12,6 +12,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Android 版源码位于子目录，桌面版不编译 -->
+    <Compile Remove="FileGather.Android\**\*.cs" />
+    <None Remove="FileGather.Android\**" />
+    <EmbeddedResource Remove="FileGather.Android\**" />
+    <Content Remove="FileGather.Android\**" />
+    <AvaloniaResource Remove="FileGather.Android\**" />
+    <AvaloniaXaml Remove="FileGather.Android\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />

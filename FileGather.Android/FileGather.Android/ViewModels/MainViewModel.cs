@@ -62,7 +62,27 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial double ProgressMax { get; set; } = 1;
 
+    [ObservableProperty]
+    public partial bool IsListView { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool IsTreeView { get; set; }
+
     public ObservableCollection<ScannedFile> Results { get; } = new();
+
+    public ObservableCollection<FileTreeNode> TreeRoots { get; } = new();
+
+    private readonly Dictionary<string, FileTreeNode> _fileNodeIndex = new(StringComparer.OrdinalIgnoreCase);
+
+    partial void OnIsListViewChanged(bool value)
+    {
+        if (value) IsTreeView = false;
+    }
+
+    partial void OnIsTreeViewChanged(bool value)
+    {
+        if (value) IsListView = false;
+    }
 
     [ObservableProperty]
     public partial bool NeedsStorageAccess { get; set; }
@@ -132,6 +152,8 @@ public partial class MainViewModel : ViewModelBase
         IsScanning = true;
         StatusText = "正在扫描…";
         Results.Clear();
+        TreeRoots.Clear();
+        _fileNodeIndex.Clear();
 
         string? excludeDir = null;
         if (Directory.Exists(TargetPath))
@@ -151,10 +173,16 @@ public partial class MainViewModel : ViewModelBase
         var includeSubfolders = IncludeSubfolders;
 
         var files = await Task.Run(() =>
-            _scanner.Scan(sourceDir, exts, keyword, includeSubfolders, excludeDir));
+        {
+            var list = _scanner.Scan(sourceDir, exts, keyword, includeSubfolders, excludeDir);
+            var roots = FileTreeNode.BuildTree(sourceDir, list, _fileNodeIndex);
+            return (Files: list, Roots: roots);
+        });
 
-        foreach (var f in files)
+        foreach (var f in files.Files)
             Results.Add(f);
+
+        TreeRoots.Add(files.Roots);
 
         IsScanning = false;
         HasResults = Results.Count > 0;
@@ -225,10 +253,19 @@ public partial class MainViewModel : ViewModelBase
                 var item = Results.FirstOrDefault(f => string.Equals(f.FullPath, path, StringComparison.OrdinalIgnoreCase));
                 if (item is not null)
                     Results.Remove(item);
+                RemoveFileNode(path);
             }
             HasResults = Results.Count > 0;
             ResultSummary = Results.Count == 0 ? "全部文件已移动完成" : $"剩余 {Results.Count} 个文件（失败项未移动）";
         }
+    }
+
+    private void RemoveFileNode(string fullPath)
+    {
+        if (!_fileNodeIndex.TryGetValue(fullPath, out var node))
+            return;
+        _fileNodeIndex.Remove(fullPath);
+        node.Parent?.RemoveChild(node);
     }
 
     private static async Task<string?> PickFolderAsync(Window? window)
