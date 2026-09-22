@@ -11,6 +11,7 @@
         Icon="/Assets/avalonia-logo.ico"
         Title="文件收集器 - FileGather"
         Width="900" Height="680"
+        MinWidth="720" MinHeight="520"
         WindowStartupLocation="CenterScreen">
 
     <Design.DataContext>
@@ -21,13 +22,15 @@
         <!-- 底部状态栏 -->
         <Border DockPanel.Dock="Bottom"
                 Margin="12,8,12,12" Padding="10,8"
-                BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4">
+                BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="4">
             <DockPanel LastChildFill="True">
                 <ProgressBar DockPanel.Dock="Right"
                              Width="220" Height="8" VerticalAlignment="Center"
                              Minimum="0" Maximum="{Binding ProgressMax}" Value="{Binding ProgressValue}"
-                             IsVisible="{Binding IsTransferring}" />
-                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                             IsIndeterminate="{Binding IsScanning}"
+                             IsVisible="{Binding IsBusy}" />
+                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite" />
             </DockPanel>
         </Border>
 
@@ -37,25 +40,35 @@
                 <!-- ① 源文件夹 -->
                 <TextBlock Text="① 选择源文件夹" FontWeight="Bold" />
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                    <TextBox Text="{Binding SourcePath}"
-                             PlaceholderText="例如：C:\Users\你的名字\Documents" />
+                    <TextBox x:Name="SourcePathBox" Text="{Binding SourcePath}"
+                             AutomationProperties.Name="源文件夹路径"
+                             PlaceholderText="例如：C:\Users\你的名字\Documents…" />
                     <Button Grid.Column="1" Content="浏览…" Padding="16,6"
+                            AutomationProperties.Name="浏览源文件夹"
                             Command="{Binding BrowseSourceCommand}"
                             CommandParameter="{Binding #Root}" />
                 </Grid>
+                <TextBlock Text="{Binding SourceError}" IsVisible="{Binding HasSourceError}"
+                           FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource AppErrorBrush}" />
 
                 <!-- ② 筛选条件 -->
                 <TextBlock Text="② 设置筛选条件" FontWeight="Bold" Margin="0,10,0,0" />
                 <StackPanel Spacing="6">
                     <Grid ColumnDefinitions="110,*" ColumnSpacing="6">
                         <TextBlock Text="文件扩展名：" VerticalAlignment="Center" />
-                        <TextBox Grid.Column="1" Text="{Binding Extensions}"
-                                 PlaceholderText="逗号分隔，如 docx,doc,pdf" />
+                        <TextBox Grid.Column="1" x:Name="ExtensionsBox" Text="{Binding Extensions}"
+                                 AutomationProperties.Name="文件扩展名"
+                                 PlaceholderText="逗号分隔，如 docx,doc,pdf…" />
                     </Grid>
+                    <TextBlock Text="{Binding ExtensionsError}" IsVisible="{Binding HasExtensionsError}"
+                               FontSize="12" TextWrapping="Wrap" Margin="116,0,0,0"
+                               Foreground="{DynamicResource AppErrorBrush}" />
                     <Grid ColumnDefinitions="110,*" ColumnSpacing="6">
                         <TextBlock Text="文件名关键词：" VerticalAlignment="Center" />
                         <TextBox Grid.Column="1" Text="{Binding Keyword}"
-                                 PlaceholderText="可选，留空表示不过滤" />
+                                 AutomationProperties.Name="文件名关键词"
+                                 PlaceholderText="可选，留空表示不过滤…" />
                     </Grid>
                     <CheckBox Content="包含子文件夹（递归检索）" IsChecked="{Binding IncludeSubfolders}" />
                 </StackPanel>
@@ -67,13 +80,15 @@
                 <!-- ③ 检索结果 -->
                 <TextBlock Text="③ 检索结果" FontWeight="Bold" Margin="0,10,0,0" />
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="{Binding ResultSummary}" FontSize="12" Foreground="Gray" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ResultSummary}" IsVisible="{Binding HasResults}"
+                               FontSize="12" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AppSecondaryTextBrush}" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
                         <RadioButton Content="列表" IsChecked="{Binding IsListView}" />
                         <RadioButton Content="树状" IsChecked="{Binding IsTreeView}" />
                     </StackPanel>
                 </Grid>
-                <ListBox IsVisible="{Binding IsListView}" ItemsSource="{Binding Results}" Height="200"
+                <ListBox IsVisible="{Binding ShowList}" ItemsSource="{Binding Results}" Height="200"
                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -82,14 +97,16 @@
                                 <TextBlock Grid.Column="1" Text="{Binding FileName}"
                                            TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="2" Text="{Binding SizeText}"
-                                           HorizontalAlignment="Right" Foreground="Gray" VerticalAlignment="Center" />
+                                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource AppSecondaryTextBrush}" />
                                 <TextBlock Grid.Column="3" Text="{Binding ModifiedText}"
-                                           Foreground="Gray" VerticalAlignment="Center" />
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource AppSecondaryTextBrush}" />
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-                <TreeView x:Name="ResultTree" IsVisible="{Binding IsTreeView}"
+                <TreeView x:Name="ResultTree" IsVisible="{Binding ShowTree}"
                           ItemsSource="{Binding TreeRoots}" Height="200">
                     <TreeView.ItemContainerTheme>
                         <ControlTheme TargetType="TreeViewItem">
@@ -98,29 +115,46 @@
                         </ControlTheme>
                     </TreeView.ItemContainerTheme>
                 </TreeView>
+                <Border IsVisible="{Binding ShowEmptyState}" Height="200"
+                        CornerRadius="4" BorderThickness="1"
+                        BorderBrush="{DynamicResource AppBorderBrush}"
+                        Background="{DynamicResource AppEmptyStateBackgroundBrush}">
+                    <TextBlock Text="{Binding ResultSummary}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextAlignment="Center" TextWrapping="Wrap" Margin="16"
+                               Foreground="{DynamicResource AppSecondaryTextBrush}" />
+                </Border>
 
                 <!-- ④ 目标文件夹 -->
                 <TextBlock Text="④ 选择目标文件夹" FontWeight="Bold" Margin="0,10,0,0" />
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                    <TextBox Text="{Binding TargetPath}"
-                             PlaceholderText="选择存放收集文件的文件夹" />
+                    <TextBox x:Name="TargetPathBox" Text="{Binding TargetPath}"
+                             AutomationProperties.Name="目标文件夹路径"
+                             PlaceholderText="选择存放收集文件的文件夹…" />
                     <Button Grid.Column="1" Content="浏览…" Padding="16,6"
+                            AutomationProperties.Name="浏览目标文件夹"
                             Command="{Binding BrowseTargetCommand}"
                             CommandParameter="{Binding #Root}" />
                 </Grid>
+                <TextBlock Text="{Binding TargetError}" IsVisible="{Binding HasTargetError}"
+                           FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource AppErrorBrush}" />
 
                 <!-- 操作方式 -->
                 <StackPanel Orientation="Horizontal" Spacing="24" Margin="0,6,0,0">
                     <RadioButton Content="复制（保留源文件）" IsChecked="{Binding !IsMove}" />
                     <RadioButton Content="移动（源文件将被移除）" IsChecked="{Binding IsMove}" />
                 </StackPanel>
-                <CheckBox Content="跳过已存在的相同文件（增量同步，重复同步时不再复制已同步过的文件）"
-                          IsChecked="{Binding SkipExistingSame}" />
+                <CheckBox IsChecked="{Binding SkipExistingSame}">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="跳过已存在的相同文件（增量同步，重复同步时不再复制已同步过的文件）" />
+                </CheckBox>
 
                 <!-- 执行按钮 -->
-                <Button Content="开始执行" Padding="0,8"
+                <Button Content="{Binding TransferButtonText}" Padding="0,8"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         Command="{Binding TransferCommand}"
+                        CommandParameter="{Binding #Root}"
                         IsEnabled="{Binding !IsTransferring}"
                         IsVisible="{Binding HasResults}" />
 

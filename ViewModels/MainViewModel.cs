@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileGather.Models;
 using FileGather.Services;
+using FileGather.Views;
 
 namespace FileGather.ViewModels;
 
@@ -68,6 +69,31 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsTreeView { get; set; }
 
+    [ObservableProperty]
+    public partial string SourceError { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string ExtensionsError { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string TargetError { get; set; } = "";
+
+    public bool HasSourceError => SourceError.Length > 0;
+    public bool HasExtensionsError => ExtensionsError.Length > 0;
+    public bool HasTargetError => TargetError.Length > 0;
+
+    /// <summary>扫描或传输进行中，用于显示进度指示。</summary>
+    public bool IsBusy => IsScanning || IsTransferring;
+
+    public string TransferButtonText => IsMove ? "开始移动" : "开始复制";
+
+    public bool ShowList => IsListView && HasResults;
+    public bool ShowTree => IsTreeView && HasResults;
+    public bool ShowEmptyState => !HasResults;
+
+    /// <summary>校验失败时请求界面聚焦指定名称的输入框（见 MainWindow 中的控件 x:Name）。</summary>
+    public event Action<string>? FocusRequested;
+
     public ObservableCollection<ScannedFile> Results { get; } = new();
 
     public ObservableCollection<FileTreeNode> TreeRoots { get; } = new();
@@ -77,11 +103,50 @@ public partial class MainViewModel : ViewModelBase
     partial void OnIsListViewChanged(bool value)
     {
         if (value) IsTreeView = false;
+        OnPropertyChanged(nameof(ShowList));
+        OnPropertyChanged(nameof(ShowTree));
     }
 
     partial void OnIsTreeViewChanged(bool value)
     {
         if (value) IsListView = false;
+        OnPropertyChanged(nameof(ShowList));
+        OnPropertyChanged(nameof(ShowTree));
+    }
+
+    partial void OnHasResultsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowList));
+        OnPropertyChanged(nameof(ShowTree));
+        OnPropertyChanged(nameof(ShowEmptyState));
+    }
+
+    partial void OnIsScanningChanged(bool value) => OnPropertyChanged(nameof(IsBusy));
+
+    partial void OnIsTransferringChanged(bool value) => OnPropertyChanged(nameof(IsBusy));
+
+    partial void OnIsMoveChanged(bool value) => OnPropertyChanged(nameof(TransferButtonText));
+
+    partial void OnSourceErrorChanged(string value) => OnPropertyChanged(nameof(HasSourceError));
+
+    partial void OnExtensionsErrorChanged(string value) => OnPropertyChanged(nameof(HasExtensionsError));
+
+    partial void OnTargetErrorChanged(string value) => OnPropertyChanged(nameof(HasTargetError));
+
+    // 用户重新编辑字段时，清除该字段上残留的错误提示
+    partial void OnSourcePathChanged(string value)
+    {
+        if (SourceError.Length > 0) SourceError = "";
+    }
+
+    partial void OnExtensionsChanged(string value)
+    {
+        if (ExtensionsError.Length > 0) ExtensionsError = "";
+    }
+
+    partial void OnTargetPathChanged(string value)
+    {
+        if (TargetError.Length > 0) TargetError = "";
     }
 
     [RelayCommand]
@@ -103,16 +168,28 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private async Task ScanAsync()
     {
-        if (string.IsNullOrWhiteSpace(SourcePath) || !Directory.Exists(SourcePath))
+        SourceError = "";
+        ExtensionsError = "";
+        TargetError = "";
+
+        if (string.IsNullOrWhiteSpace(SourcePath))
         {
-            StatusText = "请先选择有效的源文件夹";
+            SourceError = "请选择源文件夹";
+            Fail(SourceError, "SourcePathBox");
+            return;
+        }
+        if (!Directory.Exists(SourcePath))
+        {
+            SourceError = "该源文件夹不存在，请重新选择";
+            Fail(SourceError, "SourcePathBox");
             return;
         }
 
         var exts = ParseExtensions(Extensions);
         if (exts.Count == 0)
         {
-            StatusText = "请至少填写一个文件扩展名";
+            ExtensionsError = "请至少填写一个文件扩展名，多个用逗号分隔";
+            Fail(ExtensionsError, "ExtensionsBox");
             return;
         }
 
@@ -131,7 +208,8 @@ public partial class MainViewModel : ViewModelBase
             if (IsSamePath(sourceDir, targetDir))
             {
                 IsScanning = false;
-                StatusText = "源文件夹和目标文件夹不能相同";
+                TargetError = "目标文件夹不能与源文件夹相同";
+                Fail(TargetError, "TargetPathBox");
                 return;
             }
             if (IsWithinOrSame(targetDir, sourceDir))
@@ -160,8 +238,10 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task TransferAsync()
+    private async Task TransferAsync(Window? window)
     {
+        TargetError = "";
+
         if (Results.Count == 0)
         {
             StatusText = "请先检索文件";
@@ -170,15 +250,34 @@ public partial class MainViewModel : ViewModelBase
 
         if (string.IsNullOrWhiteSpace(TargetPath))
         {
-            StatusText = "请选择目标文件夹";
+            TargetError = "请选择目标文件夹";
+            Fail(TargetError, "TargetPathBox");
             return;
         }
 
         var targetDir = Path.GetFullPath(TargetPath);
         if (IsSamePath(Path.GetFullPath(SourcePath), targetDir))
         {
-            StatusText = "源文件夹和目标文件夹不能相同";
+            TargetError = "目标文件夹不能与源文件夹相同";
+            Fail(TargetError, "TargetPathBox");
             return;
+        }
+
+        var move = IsMove;
+
+        // 移动会删除源文件，属于不可撤销的破坏性操作，执行前必须确认
+        if (move)
+        {
+            var confirmed = await ConfirmDialog.ShowAsync(
+                window,
+                "确认移动文件？",
+                $"将把 {Results.Count} 个文件移动到：\n{targetDir}\n\n移动成功后源文件会被删除，该操作无法撤销。",
+                "移动并删除源文件");
+            if (!confirmed)
+            {
+                StatusText = "已取消移动";
+                return;
+            }
         }
 
         Directory.CreateDirectory(targetDir);
@@ -188,7 +287,6 @@ public partial class MainViewModel : ViewModelBase
         ProgressMax = Results.Count;
 
         var files = Results.ToList();
-        var move = IsMove;
         var skipExisting = SkipExistingSame;
         var done = 0;
 
@@ -228,6 +326,13 @@ public partial class MainViewModel : ViewModelBase
             return;
         _fileNodeIndex.Remove(fullPath);
         node.Parent?.RemoveChild(node);
+    }
+
+    /// <summary>校验失败：同步状态栏文案，并请求界面把焦点移到出错的输入框。</summary>
+    private void Fail(string message, string controlName)
+    {
+        StatusText = message;
+        FocusRequested?.Invoke(controlName);
     }
 
     private static async Task<string?> PickFolderAsync(Window? window)

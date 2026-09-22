@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FileGather.Views.ConfirmDialog"
+        Title="确认"
+        Width="440" SizeToContent="Height"
+        CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+    <StackPanel Margin="20" Spacing="16">
+        <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="CancelButton" Content="取消" Padding="16,6" IsCancel="True" />
+            <Button x:Name="ConfirmButton" Content="确认" Padding="16,6" IsDefault="True"
+                    AutomationProperties.Name="确认移动并删除源文件" />
+        </StackPanel>
+    </StackPanel>
+</Window>

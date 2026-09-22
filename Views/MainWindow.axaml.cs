@@ -1,15 +1,20 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using FileGather.Models;
+using FileGather.ViewModels;
 
 namespace FileGather.Views;
 
 public partial class MainWindow : Window
 {
+    private MainViewModel? _subscribedViewModel;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -17,6 +22,23 @@ public partial class MainWindow : Window
             typeof(FileTreeNode),
             static (item, _) => CreateNodeControl((FileTreeNode)item!),
             static item => ((FileTreeNode)item!).Children);
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (_subscribedViewModel is not null)
+            _subscribedViewModel.FocusRequested -= FocusField;
+
+        _subscribedViewModel = DataContext as MainViewModel;
+        if (_subscribedViewModel is not null)
+            _subscribedViewModel.FocusRequested += FocusField;
+    }
+
+    private void FocusField(string controlName)
+    {
+        this.FindControl<TextBox>(controlName)?.Focus();
     }
 
     private static Control CreateNodeControl(FileTreeNode node)
@@ -43,10 +65,10 @@ public partial class MainWindow : Window
         var detail = new TextBlock
         {
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = Brushes.Gray,
             Margin = new Thickness(8, 0, 0, 0),
         };
         detail.Bind(TextBlock.TextProperty, new Binding("FileDetail"));
+        detail[!TextBlock.ForegroundProperty] = new DynamicResourceExtension("AppSecondaryTextBrush");
         Grid.SetColumn(detail, 1);
 
         grid.Children.Add(name);
